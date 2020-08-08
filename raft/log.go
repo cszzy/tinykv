@@ -14,7 +14,9 @@
 
 package raft
 
-import pb "github.com/pingcap-incubator/tinykv/proto/pkg/eraftpb"
+import (
+	pb "github.com/pingcap-incubator/tinykv/proto/pkg/eraftpb"
+)
 
 // RaftLog manage the log entries, its struct look like:
 //
@@ -52,14 +54,20 @@ type RaftLog struct {
 	// Your Data Here (2A).
 }
 
-// newLog returns log using the given storage. It recovers the log
+// newLog returns log using the given storage. It recovers 恢复 the log
 // to the state that it just commits and applies the latest snapshot.
 func newLog(storage Storage) *RaftLog {
 	// Your Code Here (2A).
-
+	firstindex, _ := storage.FirstIndex()
+	lastindex, _ := storage.LastIndex()
+	entries, err := storage.Entries(firstindex, lastindex+1)
+	if err != nil{
+		panic("log.go:63 newLog err")
+	}
 	return &RaftLog{
 		storage: storage,
-		entries: make([]pb.Entry, 0),
+		entries: entries,
+		stabled: lastindex,
 	}
 }
 
@@ -73,18 +81,32 @@ func (l *RaftLog) maybeCompact() {
 // unstableEntries return all the unstable entries
 func (l *RaftLog) unstableEntries() []pb.Entry {
 	// Your Code Here (2A).
-	return nil
+	if len(l.entries) > 0{
+		lowindex := l.stabled - l.entries[0].Index +1
+		highindex := len(l.entries)
+		return l.entries[lowindex : highindex]
+	}
+	return make([]pb.Entry, 0)
 }
 
 // nextEnts returns all the committed but not applied entries
 func (l *RaftLog) nextEnts() (ents []pb.Entry) {
 	// Your Code Here (2A).
-	return nil
+	if len(l.entries) > 0{
+		base, _ := l.storage.FirstIndex()
+		lowindex := l.applied - base +1
+		highindex := l.committed - base+1
+		return l.entries[lowindex : highindex]
+	}
+	return make([]pb.Entry, 0)
 }
 
 // LastIndex return the last index of the log entries
 func (l *RaftLog) LastIndex() uint64 {
 	// Your Code Here (2A).
+	if len(l.entries) > 0{
+		return l.entries[len(l.entries)-1].Index
+	}
 	lastindex, err := l.storage.LastIndex()
 	if err != nil{
 		panic(err)
@@ -95,5 +117,19 @@ func (l *RaftLog) LastIndex() uint64 {
 // Term return the term of the entry in the given index
 func (l *RaftLog) Term(i uint64) (uint64, error) {
 	// Your Code Here (2A).
+	base, _ := l.storage.FirstIndex()
+	if len(l.entries) > 0 && i >= base{
+		return l.entries[i-base].Term, nil
+	}
 	return l.storage.Term(i)
+}
+
+//getStartIndex
+func (l *RaftLog) getStartIndex(i uint64) int{
+	firstindex, _ := l.storage.FirstIndex()
+	startindex := int(i-firstindex)
+	if startindex<0{
+		panic("startIndex should not < 0 ")
+	}
+	return startindex
 }
