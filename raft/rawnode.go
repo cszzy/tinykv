@@ -158,16 +158,16 @@ func (rn *RawNode) Ready() Ready {
 	rd := Ready{
 		Entries: rn.Raft.RaftLog.unstableEntries(),
 		CommittedEntries: rn.Raft.RaftLog.nextEnts(),
-		//Messages: rn.Raft.msgs,
+		Messages: rn.Raft.msgs,
 	}
 	softstate := rn.Raft.softState()
 	hardstate := rn.Raft.hardState()
 	if !softstate.isSoftStateEqual(rn.oldSoftState){
 		rn.oldSoftState = softstate
-		//rd.SoftState = softstate
+		rd.SoftState = softstate
 	}
 	if !isHardStateEqual(hardstate, rn.oldHardState){
-		//rd.HardState = hardstate
+		rd.HardState = hardstate
 	}
 	rn.Raft.msgs = make([]pb.Message, 0)
 	return rd

@@ -68,6 +68,7 @@ func newLog(storage Storage) *RaftLog {
 		storage: storage,
 		entries: entries,
 		stabled: lastindex,
+		applied: firstindex-1,
 	}
 }
 
